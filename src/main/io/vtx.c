@@ -129,7 +129,9 @@ STATIC_UNIT_TESTED vtxSettingsConfig_t vtxGetSettings(void)
     }
 #endif
 
-    if (!ARMING_FLAG(ARMED) && !failsafeIsActive() &&
+    if (
+!ARMING_FLAG(ARMED) && 
+        !failsafeIsActive() &&
         (settings.lowPowerDisarm == VTX_LOW_POWER_DISARM_ALWAYS ||
         (settings.lowPowerDisarm == VTX_LOW_POWER_DISARM_UNTIL_FIRST_ARM && !ARMING_FLAG(WAS_EVER_ARMED)))) {
         settings.power = VTX_TABLE_DEFAULT_POWER;
@@ -140,7 +142,7 @@ STATIC_UNIT_TESTED vtxSettingsConfig_t vtxGetSettings(void)
 
 static bool vtxProcessBandAndChannel(vtxDevice_t *vtxDevice)
 {
-    
+    // if (!ARMING_FLAG(ARMED)) {
         uint8_t vtxBand;
         uint8_t vtxChan;
         if (vtxCommonGetBandAndChannel(vtxDevice, &vtxBand, &vtxChan)) {
@@ -150,14 +152,14 @@ static bool vtxProcessBandAndChannel(vtxDevice_t *vtxDevice)
                 return true;
             }
         }
-    
+    // }
     return false;
 }
 
 #if defined(VTX_SETTINGS_FREQCMD)
 static bool vtxProcessFrequency(vtxDevice_t *vtxDevice)
 {
-    
+    // if (!ARMING_FLAG(ARMED)) {
         uint16_t vtxFreq;
         if (vtxCommonGetFrequency(vtxDevice, &vtxFreq)) {
             const vtxSettingsConfig_t settings = vtxGetSettings();
@@ -166,7 +168,7 @@ static bool vtxProcessFrequency(vtxDevice_t *vtxDevice)
                 return true;
             }
         }
-    
+    // }
     return false;
 }
 #endif
@@ -189,7 +191,8 @@ static bool vtxProcessPitMode(vtxDevice_t *vtxDevice)
     static bool prevPmSwitchState = false;
 
     unsigned vtxStatus;
-    if (!ARMING_FLAG(ARMED) && vtxCommonGetStatus(vtxDevice, &vtxStatus)) {
+    if (//!ARMING_FLAG(ARMED) && 
+vtxCommonGetStatus(vtxDevice, &vtxStatus)) {
         bool currPmSwitchState = IS_RC_MODE_ACTIVE(BOXVTXPITMODE);
 
         if (currPmSwitchState != prevPmSwitchState) {
@@ -275,12 +278,12 @@ void vtxUpdate(timeUs_t currentTimeUs)
                 default:
                     break;
             }
-            currentSchedule = (currentSchedule + 1) % VTX_PARAM_COUNT;
-        } while (!vtxUpdatePending && currentSchedule != startingSchedule);
+          currentSchedule = (currentSchedule + 1) % VTX_PARAM_COUNT;
+      } while (!vtxUpdatePending && currentSchedule != startingSchedule);
 
-        if (!ARMING_FLAG(ARMED) || vtxUpdatePending) {
+        // if (!ARMING_FLAG(ARMED) || vtxUpdatePending) {
             vtxCommonProcess(vtxDevice, currentTimeUs);
-        }
+        // }
     }
 }
 

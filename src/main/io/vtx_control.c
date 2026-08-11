@@ -47,6 +47,7 @@
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 
+
 PG_REGISTER_WITH_RESET_TEMPLATE(vtxConfig_t, vtxConfig, PG_VTX_CONFIG, 1);
 
 PG_RESET_TEMPLATE(vtxConfig_t, vtxConfig,
@@ -54,10 +55,8 @@ PG_RESET_TEMPLATE(vtxConfig_t, vtxConfig,
     .halfDuplex = true
 );
 
-// Latched on first arm and intentionally never cleared for the rest of the session, so band
-// and channel can no longer be changed by switch once the craft has been armed. STATIC_UNIT_TESTED
-// (still 'static' in firmware builds) so unit tests can reset it between cases.
-STATIC_UNIT_TESTED uint8_t locked = 0;
+static uint8_t locked = 0;
+
 
 void vtxControlInit(void)
 {
@@ -75,11 +74,7 @@ void vtxControlInputPoll(void)
 
 static void vtxUpdateBandAndChannel(uint8_t bandStep, uint8_t channelStep)
 {
-    if (ARMING_FLAG(ARMED)) {
-        locked = 1;
-    }
-
-    if (!locked && vtxCommonDevice()) {
+     if ( vtxCommonDevice()) {
         vtxSettingsConfigMutable()->band += bandStep;
         vtxSettingsConfigMutable()->channel += channelStep;
     }
@@ -107,32 +102,33 @@ void vtxDecrementChannel(void)
 
 void vtxUpdateActivatedChannel(void)
 {
-    if (ARMING_FLAG(ARMED)) {
-        locked = 1;
-    }
-
     if (vtxCommonDevice()) {
-        // Apply every active activation condition, like updateActivatedModes() does for mode
-        // ranges. Stopping at the first match (or remembering only the last applied index)
-        // starves higher-indexed conditions when three or more are active at once, so band,
-        // channel and power assigned to separate switches could not all take effect. When two
-        // active conditions set the same field, the highest-indexed one wins (last write).
+        static uint8_t lastIndex = -1;
+
         for (uint8_t index = 0; index < MAX_CHANNEL_ACTIVATION_CONDITION_COUNT; index++) {
             const vtxChannelActivationCondition_t *vtxChannelActivationCondition = &vtxConfig()->vtxChannelActivationConditions[index];
 
-            if (isRangeActive(vtxChannelActivationCondition->auxChannelIndex, &vtxChannelActivationCondition->range)) {
-                if (!locked) {
-                    if (vtxChannelActivationCondition->band > 0) {
-                        vtxSettingsConfigMutable()->band = vtxChannelActivationCondition->band;
-                    }
-                    if (vtxChannelActivationCondition->channel > 0) {
-                        vtxSettingsConfigMutable()->channel = vtxChannelActivationCondition->channel;
-                    }
+            if (isRangeActive(vtxChannelActivationCondition->auxChannelIndex, &vtxChannelActivationCondition->range)
+                && index != lastIndex) {
+                lastIndex = index;
+
+                if (vtxChannelActivationCondition->band > 0) {
+                    vtxSettingsConfigMutable()->band = vtxChannelActivationCondition->band;
+                }
+
+                if (vtxChannelActivationCondition->channel > 0) {
+                    vtxSettingsConfigMutable()->channel = vtxChannelActivationCondition->channel;
                 }
 
                 if (vtxChannelActivationCondition->power > 0) {
-                    vtxSettingsConfigMutable()->power = vtxChannelActivationCondition->power;
+                    // if(vtxChannelActivationCondition->power == 3){
+                    //     vtxCommonSetPitMode(vtxCommonDevice(), true);
+                    // }else {
+                    //     vtxCommonSetPitMode(vtxCommonDevice(), false);
+                        vtxSettingsConfigMutable()->power = vtxChannelActivationCondition->power;
+                    // }
                 }
+                break;
             }
         }
     }
