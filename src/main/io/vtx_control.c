@@ -55,7 +55,7 @@ PG_RESET_TEMPLATE(vtxConfig_t, vtxConfig,
     .halfDuplex = true
 );
 
-static uint8_t locked = 0;
+// static uint8_t locked = 0;
 
 
 void vtxControlInit(void)
